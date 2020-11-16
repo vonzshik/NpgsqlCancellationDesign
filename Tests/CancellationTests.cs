@@ -35,5 +35,26 @@ namespace Tests
             Assert.That(connector.ReadCtsAllocated, Is.EqualTo(2));
             Assert.That(connector.WriteCtsAllocated, Is.EqualTo(0));
         }
+
+        [Test]
+        [Timeout(1000)]
+        public void CancelAsyncWhileDisposingCts()
+        {
+            var connector = new Connector();
+            connector.ReadTimeout = 100;
+            var readBuffer = connector.ReadBuffer;
+            readBuffer.EnableCtsDisposeLock = true;
+
+            using var cts = new CancellationTokenSource();
+            var readTask = connector.ReadAsync(cts.Token);
+            readBuffer.CtsDisposeUserLock.Wait();
+            cts.Cancel();
+            readBuffer.CtsDisposeReadLock.Set();
+
+            Assert.ThrowsAsync<TimeoutException>(async () => await readTask);
+            Assert.That(connector.ReadCtsAllocated, Is.EqualTo(1));
+            Assert.That(connector.WriteCtsAllocated, Is.EqualTo(0));
+            Assert.That(!readBuffer.Cts.IsCancellationRequested);
+        }
     }
 }

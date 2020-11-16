@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -10,11 +11,25 @@ namespace NpgsqlCancellationDesign
 
         private int currentTimeout;
 
-        private bool cancellationMode;
-
         internal CancellationTokenSource Cts { get; private set; } = new CancellationTokenSource();
 
         internal int CtsAllocated { get; private set; }
+
+        /// <summary>
+        /// Determines, if something is resetting the cts.
+        /// 1, if it's unlocked.
+        /// 0, if it's locked.
+        /// </summary>
+        private int resetCtsLock = 0;
+
+        #region MRES
+
+        internal ManualResetEventSlim CtsDisposeUserLock { get; } = new ManualResetEventSlim();
+        internal ManualResetEventSlim CtsDisposeReadLock { get; } = new ManualResetEventSlim();
+
+        internal bool EnableCtsDisposeLock { get; set; }
+
+        #endregion
 
         public int Timeout
         {
@@ -36,6 +51,9 @@ namespace NpgsqlCancellationDesign
 
         public async Task<int> Read(bool async)
         {
+            // Unlocking the cts
+            Interlocked.Increment(ref this.resetCtsLock);
+
             var token = this.Cts.Token;
             if (async && this.Timeout > 0)
             {
@@ -49,7 +67,7 @@ namespace NpgsqlCancellationDesign
                     ? await this.connector.RWO.ReadAsync(token)
                     : this.connector.RWO.Read();
             }
-            catch (OperationCanceledException) when (this.cancellationMode)
+            catch (OperationCanceledException) when (this.connector.IsCancellationRequested)
             {
                 throw;
             }
@@ -63,17 +81,28 @@ namespace NpgsqlCancellationDesign
             }
             finally
             {
+                var lockTaken = Interlocked.Decrement(ref this.resetCtsLock);
+                Debug.Assert(lockTaken == 0 || lockTaken == -1);
+                if (lockTaken == -1)
+                {
+                    // Worst case scenario - we're attempting to cancel right now
+                    // Waiting for it to complete
+                    lock (this) { }
+                }
+
                 this.Cts.CancelAfter(-1);
                 if (this.Cts.IsCancellationRequested)
                 {
-                    // We have to put a lock here, so it's not cancelled while it's being disposed
-                    lock (this)
-                    {
-                        this.Cts.Dispose();
-                        this.Cts = new CancellationTokenSource();
-                    }
-                    
+                    this.Cts.Dispose();
+                    this.Cts = new CancellationTokenSource();
+
                     this.CtsAllocated++;
+
+                    if (this.EnableCtsDisposeLock)
+                    {
+                        this.CtsDisposeUserLock.Set();
+                        this.CtsDisposeReadLock.Wait();
+                    }
                 }
             }
         }
@@ -83,17 +112,16 @@ namespace NpgsqlCancellationDesign
             // We have to put a lock here, so it's not cancelled while it's being disposed
             lock (this)
             {
-                if (this.cancellationMode)
-                    return;
+                var lockTaken = Interlocked.Decrement(ref this.resetCtsLock);
+                Debug.Assert(lockTaken == 0 || lockTaken == -1);
+                if (lockTaken == 0)
+                {
+                    // Best case scenario - we were able to take a lock
+                    this.Cts.Cancel();
+                }
 
-                this.cancellationMode = true;
-                this.Cts.Cancel();
+                Interlocked.Increment(ref this.resetCtsLock);
             }
-        }
-
-        internal void Reset()
-        {
-            this.cancellationMode = false;
         }
     }
 }

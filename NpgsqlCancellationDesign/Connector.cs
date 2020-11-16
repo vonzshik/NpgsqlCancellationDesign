@@ -5,6 +5,9 @@ namespace NpgsqlCancellationDesign
 {
     public class Connector
     {
+        private volatile bool isCancellationRequested;
+        internal bool IsCancellationRequested => this.isCancellationRequested;
+
         internal ReadBuffer ReadBuffer { get; }
         internal WriteBuffer WriteBuffer { get; }
 
@@ -36,13 +39,25 @@ namespace NpgsqlCancellationDesign
         public int Read() => this.ReadBuffer.Read(async: false).GetAwaiter().GetResult();
         public async Task<int> ReadAsync(CancellationToken cancellationToken = default)
         {
-            using var _ = cancellationToken.Register(this.ReadBuffer.Cancel);
+            using var _ = cancellationToken.Register(this.Cancel);
             return await this.ReadBuffer.Read(async: true);
         }
 
         public void Reset()
         {
-            this.ReadBuffer.Reset();
+            this.isCancellationRequested = false;
+        }
+
+        public void Cancel()
+        {
+            lock (this)
+            {
+                if (this.isCancellationRequested)
+                    return;
+
+                this.isCancellationRequested = true;
+                this.ReadBuffer.Cancel();
+            }
         }
     }
 }
