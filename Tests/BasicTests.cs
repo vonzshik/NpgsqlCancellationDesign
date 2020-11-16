@@ -24,6 +24,8 @@ namespace Tests
                 : connector.Read();
 
             Assert.That(result, Is.EqualTo(expected));
+            Assert.That(connector.ReadCtsAllocated, Is.EqualTo(0));
+            Assert.That(connector.WriteCtsAllocated, Is.EqualTo(0));
         }
 
         [Test]
@@ -34,6 +36,8 @@ namespace Tests
             connector.WriteTimeout = 25;
 
             Assert.Throws<TimeoutException>(() => connector.Write(0));
+            Assert.That(connector.ReadCtsAllocated, Is.EqualTo(0));
+            Assert.That(connector.WriteCtsAllocated, Is.EqualTo(0));
         }
 
         [Test]
@@ -44,6 +48,8 @@ namespace Tests
             connector.WriteTimeout = 25;
 
             Assert.ThrowsAsync<TimeoutException>(() => connector.WriteAsync(0));
+            Assert.That(connector.ReadCtsAllocated, Is.EqualTo(0));
+            Assert.That(connector.WriteCtsAllocated, Is.EqualTo(1));
         }
 
         [Test]
@@ -54,6 +60,8 @@ namespace Tests
             connector.ReadTimeout = 115;
 
             Assert.Throws<TimeoutException>(() => connector.Read());
+            Assert.That(connector.ReadCtsAllocated, Is.EqualTo(0));
+            Assert.That(connector.WriteCtsAllocated, Is.EqualTo(0));
         }
 
         [Test]
@@ -64,6 +72,8 @@ namespace Tests
             connector.ReadTimeout = 115;
 
             Assert.ThrowsAsync<TimeoutException>(() => connector.ReadAsync());
+            Assert.That(connector.ReadCtsAllocated, Is.EqualTo(1));
+            Assert.That(connector.WriteCtsAllocated, Is.EqualTo(0));
         }
 
         [Test]
@@ -95,8 +105,11 @@ namespace Tests
                 }
             });
 
-            await writeTask;
-            await readTask;
+            Assert.DoesNotThrowAsync(() => writeTask);
+            Assert.DoesNotThrowAsync(() => readTask);
+
+            Assert.That(connector.ReadCtsAllocated, Is.EqualTo(0));
+            Assert.That(connector.WriteCtsAllocated, Is.EqualTo(0));
         }
     }
 }

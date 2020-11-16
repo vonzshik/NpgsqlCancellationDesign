@@ -12,6 +12,8 @@ namespace NpgsqlCancellationDesign
 
         private CancellationTokenSource cts = new CancellationTokenSource();
 
+        internal int CtsAllocated { get; private set; }
+
         public int Timeout
         {
             get => this.currentTimeout;
@@ -57,7 +59,11 @@ namespace NpgsqlCancellationDesign
             {
                 this.cts.CancelAfter(-1);
                 if (this.cts.IsCancellationRequested)
+                {
+                    this.cts.Dispose();
                     this.cts = new CancellationTokenSource();
+                    this.CtsAllocated++;
+                }
             }
         }
     }

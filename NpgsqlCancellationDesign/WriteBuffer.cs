@@ -25,6 +25,8 @@ namespace NpgsqlCancellationDesign
             }
         }
 
+        internal int CtsAllocated { get; private set; }
+
         public WriteBuffer(Connector connector)
         {
             this.connector = connector;
@@ -58,7 +60,11 @@ namespace NpgsqlCancellationDesign
             {
                 this.cts.CancelAfter(-1);
                 if (this.cts.IsCancellationRequested)
+                {
+                    this.cts.Dispose();
                     this.cts = new CancellationTokenSource();
+                    this.CtsAllocated++;
+                }
             }
         }
     }
