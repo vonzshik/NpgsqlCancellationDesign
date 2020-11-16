@@ -16,9 +16,9 @@ namespace NpgsqlCancellationDesign
         public int ReadTimeout { get; set; }
         public int WriteTimeout { get; set; }
 
-        public void Write(int value) => Task.Run(() => this.WriteInternal(async: false, value, CancellationToken.None)).GetAwaiter().GetResult();
+        public void Write(int value) => this.WriteInternal(async: false, value, CancellationToken.None).GetAwaiter().GetResult();
 
-        public Task WriteAsync(int value, CancellationToken cancellationToken) => Task.Run(() => this.WriteInternal(async: true, value, cancellationToken));
+        public Task WriteAsync(int value, CancellationToken cancellationToken) => this.WriteInternal(async: true, value, cancellationToken);
 
         private async Task WriteInternal(bool async, int value, CancellationToken cancellationToken)
         {
