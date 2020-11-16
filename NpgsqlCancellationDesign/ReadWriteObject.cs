@@ -7,6 +7,8 @@ namespace NpgsqlCancellationDesign
 {
     public class ReadWriteObject
     {
+        private const int InternalTimeout = 33;
+
         private static readonly Random rnd = new Random();
 
         private readonly ConcurrentQueue<int> queue = new ConcurrentQueue<int>();
@@ -57,10 +59,10 @@ namespace NpgsqlCancellationDesign
                 }
 
                 if (async)
-                    await Task.Delay(33, cancellationToken);
+                    await Task.Delay(InternalTimeout, cancellationToken);
                 else
-                    Thread.Sleep(33);
-                timePassed += 33;
+                    Thread.Sleep(InternalTimeout);
+                timePassed += InternalTimeout;
 
                 if (!async && this.ReadTimeout > 0 && timePassed > this.ReadTimeout)
                     throw new TimeoutException();
