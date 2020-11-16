@@ -49,12 +49,33 @@ namespace Tests
             var readTask = connector.ReadAsync(cts.Token);
             readBuffer.CtsDisposeUserLock.Wait();
             cts.Cancel();
-            readBuffer.CtsDisposeReadLock.Set();
+            readBuffer.CtsDisposeBufferLock.Set();
 
             Assert.ThrowsAsync<TimeoutException>(async () => await readTask);
             Assert.That(connector.ReadCtsAllocated, Is.EqualTo(1));
             Assert.That(connector.WriteCtsAllocated, Is.EqualTo(0));
             Assert.That(!readBuffer.Cts.IsCancellationRequested);
+        }
+
+        [Test]
+        [Timeout(5000)]
+        public async Task CancelAsyncBetweenReadings()
+        {
+            var connector = new Connector();
+            connector.ReadTimeout = 100;
+            connector.EnableMultipleReadLock = true;
+
+            await connector.WriteAsync(42);
+
+            using var cts = new CancellationTokenSource();
+            var readTask = Task.Run(() => connector.ReadMultipleAsync(2, cts.Token));
+            connector.MultipleReadUserLock.Wait();
+            cts.Cancel();
+            connector.MultipleReadConnectorLock.Set();
+
+            Assert.ThrowsAsync<TaskCanceledException>(async () => await readTask);
+            Assert.That(connector.ReadCtsAllocated, Is.EqualTo(1));
+            Assert.That(connector.WriteCtsAllocated, Is.EqualTo(0));
         }
     }
 }

@@ -1,4 +1,5 @@
-﻿using System.Threading;
+﻿using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace NpgsqlCancellationDesign
@@ -43,6 +44,25 @@ namespace NpgsqlCancellationDesign
             return await this.ReadBuffer.Read(async: true);
         }
 
+        public async Task<int[]> ReadMultipleAsync(int count, CancellationToken cancellationToken = default)
+        {
+            var result = new List<int>(count);
+            using var _ = cancellationToken.Register(this.Cancel);
+            for (var i = 0; i < count; i++)
+            {
+                var read = await this.ReadBuffer.Read(async: true);
+                result.Add(read);
+
+                if (this.EnableMultipleReadLock)
+                {
+                    this.MultipleReadUserLock.Set();
+                    this.MultipleReadConnectorLock.Wait();
+                }
+            }
+
+            return result.ToArray();
+        }
+
         public void Reset()
         {
             this.isCancellationRequested = false;
@@ -56,8 +76,18 @@ namespace NpgsqlCancellationDesign
                     return;
 
                 this.isCancellationRequested = true;
+                this.ReadBuffer.Timeout = 0;
                 this.ReadBuffer.Cancel();
             }
         }
+
+        #region For Tests
+
+        internal ManualResetEventSlim MultipleReadConnectorLock { get; } = new ManualResetEventSlim();
+        internal ManualResetEventSlim MultipleReadUserLock { get; } = new ManualResetEventSlim();
+
+        internal bool EnableMultipleReadLock { get; set; }
+
+        #endregion
     }
 }

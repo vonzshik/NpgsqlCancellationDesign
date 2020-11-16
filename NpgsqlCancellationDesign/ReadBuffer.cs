@@ -9,7 +9,7 @@ namespace NpgsqlCancellationDesign
     {
         private readonly Connector connector;
 
-        private int currentTimeout;
+        private int currentTimeout = -1;
 
         internal CancellationTokenSource Cts { get; private set; } = new CancellationTokenSource();
 
@@ -20,16 +20,7 @@ namespace NpgsqlCancellationDesign
         /// 1, if it's unlocked.
         /// 0, if it's locked.
         /// </summary>
-        private int resetCtsLock = 0;
-
-        #region MRES
-
-        internal ManualResetEventSlim CtsDisposeUserLock { get; } = new ManualResetEventSlim();
-        internal ManualResetEventSlim CtsDisposeReadLock { get; } = new ManualResetEventSlim();
-
-        internal bool EnableCtsDisposeLock { get; set; }
-
-        #endregion
+        private int resetCtsLock = 1;
 
         public int Timeout
         {
@@ -51,11 +42,8 @@ namespace NpgsqlCancellationDesign
 
         public async Task<int> Read(bool async)
         {
-            // Unlocking the cts
-            Interlocked.Increment(ref this.resetCtsLock);
-
             var token = this.Cts.Token;
-            if (async && this.Timeout > 0)
+            if (async && this.Timeout >= 0)
             {
                 token = this.Cts.Token;
                 this.Cts.CancelAfter(this.Timeout);
@@ -101,9 +89,12 @@ namespace NpgsqlCancellationDesign
                     if (this.EnableCtsDisposeLock)
                     {
                         this.CtsDisposeUserLock.Set();
-                        this.CtsDisposeReadLock.Wait();
+                        this.CtsDisposeBufferLock.Wait();
                     }
                 }
+
+                // Unlocking the cts
+                Interlocked.Increment(ref this.resetCtsLock);
             }
         }
 
@@ -123,5 +114,14 @@ namespace NpgsqlCancellationDesign
                 Interlocked.Increment(ref this.resetCtsLock);
             }
         }
+
+        #region For Tests
+
+        internal ManualResetEventSlim CtsDisposeUserLock { get; } = new ManualResetEventSlim();
+        internal ManualResetEventSlim CtsDisposeBufferLock { get; } = new ManualResetEventSlim();
+
+        internal bool EnableCtsDisposeLock { get; set; }
+
+        #endregion
     }
 }
