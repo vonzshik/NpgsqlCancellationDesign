@@ -56,6 +56,12 @@ namespace NpgsqlCancellationDesign
             {
                 throw;
             }
+            finally
+            {
+                this.cts.CancelAfter(-1);
+                if (this.cts.IsCancellationRequested)
+                    this.cts = new CancellationTokenSource();
+            }
         }
     }
 }
