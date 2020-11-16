@@ -10,7 +10,7 @@ namespace NpgsqlCancellationDesign
 
         private int currentTimeout;
 
-        private CancellationTokenSource cts = new CancellationTokenSource();
+        internal CancellationTokenSource Cts { get; private set; } = new CancellationTokenSource();
 
         internal int CtsAllocated { get; private set; }
 
@@ -34,11 +34,11 @@ namespace NpgsqlCancellationDesign
 
         public async Task<int> Read(bool async)
         {
-            var token = CancellationToken.None;
+            var token = this.Cts.Token;
             if (async && this.Timeout > 0)
             {
-                token = this.cts.Token;
-                this.cts.CancelAfter(this.Timeout);
+                token = this.Cts.Token;
+                this.Cts.CancelAfter(this.Timeout);
             }
 
             try
@@ -46,6 +46,10 @@ namespace NpgsqlCancellationDesign
                 return async
                     ? await this.connector.RWO.ReadAsync(token)
                     : this.connector.RWO.Read();
+            }
+            catch (OperationCanceledException) when (this.connector.UserCancellationRequested)
+            {
+                throw;
             }
             catch (OperationCanceledException)
             {
@@ -57,11 +61,11 @@ namespace NpgsqlCancellationDesign
             }
             finally
             {
-                this.cts.CancelAfter(-1);
-                if (this.cts.IsCancellationRequested)
+                this.Cts.CancelAfter(-1);
+                if (this.Cts.IsCancellationRequested)
                 {
-                    this.cts.Dispose();
-                    this.cts = new CancellationTokenSource();
+                    this.Cts.Dispose();
+                    this.Cts = new CancellationTokenSource();
                     this.CtsAllocated++;
                 }
             }
