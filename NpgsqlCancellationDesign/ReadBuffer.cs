@@ -95,6 +95,8 @@ namespace NpgsqlCancellationDesign
 
                 // Unlocking the cts
                 Interlocked.Increment(ref this.resetCtsLock);
+
+                //TODO: If we cancel between reads with a positive cancellation timeout, we might get a cancelled cts (although there was not waiting)
             }
         }
 
