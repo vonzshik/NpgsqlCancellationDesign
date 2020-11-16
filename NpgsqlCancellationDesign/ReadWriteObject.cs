@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -8,7 +9,7 @@ namespace NpgsqlCancellationDesign
     {
         private static readonly Random rnd = new Random();
 
-        private int? currentValue;
+        private readonly ConcurrentQueue<int> queue = new ConcurrentQueue<int>();
 
         public int ReadTimeout { get; set; }
         public int WriteTimeout { get; set; }
@@ -35,7 +36,7 @@ namespace NpgsqlCancellationDesign
             if (raiseTimeoutError)
                 throw new TimeoutException();
 
-            this.currentValue = value;
+            this.queue.Enqueue(value);
         }
 
         public int Read() => this.ReadInternal(async: false, CancellationToken.None).GetAwaiter().GetResult();
@@ -45,9 +46,16 @@ namespace NpgsqlCancellationDesign
         private async Task<int> ReadInternal(bool async, CancellationToken cancellationToken)
         {
             var timePassed = 0;
+            int result;
 
-            while (this.currentValue is null)
+            while (true)
             {
+                if (this.queue.TryDequeue(out var value))
+                {
+                    result = value;
+                    break;
+                }
+
                 if (async)
                     await Task.Delay(33, cancellationToken);
                 else
@@ -58,7 +66,7 @@ namespace NpgsqlCancellationDesign
                     throw new TimeoutException();
             }
 
-            return this.currentValue.Value;
+            return result;
         }
     }
 }

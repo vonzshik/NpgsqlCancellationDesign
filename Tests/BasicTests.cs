@@ -65,5 +65,38 @@ namespace Tests
 
             Assert.ThrowsAsync<TimeoutException>(() => connector.ReadAsync());
         }
+
+        [Test]
+        [Timeout(5000)]
+        public async Task WriteAndReadMultiple([Values(true, false)] bool async)
+        {
+            var connector = new Connector();
+
+            var writeTask = Task.Run(async () =>
+            {
+                for (var i = 0; i < 5; i++)
+                {
+                    if (async)
+                        await connector.WriteAsync(i);
+                    else
+                        connector.Write(i);
+                }
+            });
+
+            var readTask = Task.Run(async () =>
+            {
+                for (var i = 0; i < 5; i++)
+                {
+                    var result = async
+                        ? await connector.ReadAsync()
+                        : connector.Read();
+
+                    Assert.That(result, Is.EqualTo(i));
+                }
+            });
+
+            await writeTask;
+            await readTask;
+        }
     }
 }
