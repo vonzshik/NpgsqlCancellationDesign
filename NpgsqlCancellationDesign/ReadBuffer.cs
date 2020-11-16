@@ -97,6 +97,7 @@ namespace NpgsqlCancellationDesign
                 Interlocked.Increment(ref this.resetCtsLock);
 
                 //TODO: If we cancel between reads with a positive cancellation timeout, we might get a cancelled cts (although there was not waiting)
+                //TODO: If we've read a cancellation response, we might be still in a cancellation logic. We should take a lock just in case
             }
         }
 
