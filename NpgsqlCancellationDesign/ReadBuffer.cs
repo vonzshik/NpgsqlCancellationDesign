@@ -90,5 +90,10 @@ namespace NpgsqlCancellationDesign
                 this.Cts.Cancel();
             }
         }
+
+        internal void Reset()
+        {
+            this.cancellationMode = false;
+        }
     }
 }

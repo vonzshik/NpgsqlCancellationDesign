@@ -21,6 +21,8 @@ namespace Tests
             // Task.Delay throws TaskCanceledException instead of OperationCanceledException
             Assert.ThrowsAsync<TaskCanceledException>(async () => await readTask);
 
+            connector.Reset();
+
             await connector.WriteAsync(42);
             var result = await connector.ReadAsync();
             Assert.That(result, Is.EqualTo(42));

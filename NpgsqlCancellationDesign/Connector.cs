@@ -39,5 +39,10 @@ namespace NpgsqlCancellationDesign
             using var _ = cancellationToken.Register(this.readBuffer.Cancel);
             return await this.readBuffer.Read(async: true);
         }
+
+        public void Reset()
+        {
+            this.readBuffer.Reset();
+        }
     }
 }
