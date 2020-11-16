@@ -78,7 +78,7 @@ namespace Tests
 
         [Test]
         [Timeout(5000)]
-        public async Task WriteAndReadMultiple([Values(true, false)] bool async)
+        public void WriteAndReadMultiple([Values(true, false)] bool async)
         {
             var connector = new Connector();
 
