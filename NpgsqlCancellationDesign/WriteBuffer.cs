@@ -10,6 +10,23 @@ namespace NpgsqlCancellationDesign
     {
         private readonly Connector connector;
 
+        private int currentTimeout;
+
+        private CancellationTokenSource cts = new CancellationTokenSource();
+
+        public int Timeout
+        {
+            get => this.currentTimeout;
+            set
+            {
+                if (this.currentTimeout != value)
+                {
+                    this.currentTimeout = value;
+                    this.connector.RWO.WriteTimeout = value;
+                }
+            }
+        }
+
         public WriteBuffer(Connector connector)
         {
             this.connector = connector;
@@ -17,14 +34,25 @@ namespace NpgsqlCancellationDesign
 
         public async Task Write(bool async, int value)
         {
+            var token = CancellationToken.None;
+            if (async && this.Timeout > 0)
+            {
+                token = this.cts.Token;
+                this.cts.CancelAfter(this.Timeout);
+            }
+
             try
             {
                 if (async)
-                    await this.connector.RWO.WriteAsync(value, CancellationToken.None);
+                    await this.connector.RWO.WriteAsync(value, token);
                 else
                     this.connector.RWO.Write(value);
             }
-            catch (Exception ex)
+            catch (OperationCanceledException)
+            {
+                throw new TimeoutException();
+            }
+            catch (Exception)
             {
                 throw;
             }

@@ -15,14 +15,14 @@ namespace NpgsqlCancellationDesign
 
         public int ReadTimeout
         {
-            get => this.RWO.ReadTimeout;
-            set => this.RWO.ReadTimeout = value;
+            get => this.readBuffer.Timeout;
+            set => this.readBuffer.Timeout = value;
         }
 
         public int WriteTimeout
         {
-            get => this.RWO.WriteTimeout;
-            set => this.RWO.WriteTimeout = value;
+            get => this.writeBuffer.Timeout;
+            set => this.writeBuffer.Timeout = value;
         }
 
         public Connector()

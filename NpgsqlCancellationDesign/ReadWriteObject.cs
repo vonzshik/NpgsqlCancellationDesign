@@ -22,7 +22,7 @@ namespace NpgsqlCancellationDesign
         {
             var delay = rnd.Next(50, 100);
             var raiseTimeoutError = false;
-            if (this.WriteTimeout > 0 && this.WriteTimeout < 50)
+            if (!async && this.WriteTimeout > 0 && this.WriteTimeout < 50)
             {
                 delay = this.WriteTimeout;
                 raiseTimeoutError = true;
@@ -62,7 +62,7 @@ namespace NpgsqlCancellationDesign
                     Thread.Sleep(33);
                 timePassed += 33;
 
-                if (this.ReadTimeout > 0 && timePassed > this.ReadTimeout)
+                if (!async && this.ReadTimeout > 0 && timePassed > this.ReadTimeout)
                     throw new TimeoutException();
             }
 
