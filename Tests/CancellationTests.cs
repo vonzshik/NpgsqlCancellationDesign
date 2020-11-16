@@ -9,10 +9,12 @@ namespace Tests
     {
         [Test]
         [Timeout(1000)]
-        public void CancelAsync()
+        public void CancelAsync([Values(true, false)] bool isTokenCancelled)
         {
             var connector = new Connector();
             using var cts = new CancellationTokenSource();
+            if (isTokenCancelled)
+                cts.Cancel();
             var readTask = connector.ReadAsync(cts.Token);
             cts.Cancel();
 
