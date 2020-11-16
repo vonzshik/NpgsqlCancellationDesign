@@ -9,7 +9,7 @@ namespace Tests
     {
         [Test]
         [Timeout(1000)]
-        public void CancelAsync([Values(true, false)] bool isTokenCancelled)
+        public async Task CancelAsync([Values(true, false)] bool isTokenCancelled)
         {
             var connector = new Connector();
             using var cts = new CancellationTokenSource();
@@ -20,6 +20,11 @@ namespace Tests
 
             // Task.Delay throws TaskCanceledException instead of OperationCanceledException
             Assert.ThrowsAsync<TaskCanceledException>(async () => await readTask);
+
+            await connector.WriteAsync(42);
+            var result = await connector.ReadAsync();
+            Assert.That(result, Is.EqualTo(42));
+
             Assert.That(connector.ReadCtsAllocated, Is.EqualTo(1));
             Assert.That(connector.WriteCtsAllocated, Is.EqualTo(0));
         }
