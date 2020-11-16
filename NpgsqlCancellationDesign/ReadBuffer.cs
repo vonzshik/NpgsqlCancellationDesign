@@ -10,6 +10,8 @@ namespace NpgsqlCancellationDesign
 
         private int currentTimeout;
 
+        private bool cancellationMode;
+
         internal CancellationTokenSource Cts { get; private set; } = new CancellationTokenSource();
 
         internal int CtsAllocated { get; private set; }
@@ -47,7 +49,7 @@ namespace NpgsqlCancellationDesign
                     ? await this.connector.RWO.ReadAsync(token)
                     : this.connector.RWO.Read();
             }
-            catch (OperationCanceledException) when (this.connector.UserCancellationRequested)
+            catch (OperationCanceledException) when (this.cancellationMode)
             {
                 throw;
             }
@@ -64,10 +66,28 @@ namespace NpgsqlCancellationDesign
                 this.Cts.CancelAfter(-1);
                 if (this.Cts.IsCancellationRequested)
                 {
-                    this.Cts.Dispose();
-                    this.Cts = new CancellationTokenSource();
+                    // We have to put a lock here, so it's not cancelled while it's being disposed
+                    lock (this)
+                    {
+                        this.Cts.Dispose();
+                        this.Cts = new CancellationTokenSource();
+                    }
+                    
                     this.CtsAllocated++;
                 }
+            }
+        }
+
+        internal void Cancel()
+        {
+            // We have to put a lock here, so it's not cancelled while it's being disposed
+            lock (this)
+            {
+                if (this.cancellationMode)
+                    return;
+
+                this.cancellationMode = true;
+                this.Cts.Cancel();
             }
         }
     }

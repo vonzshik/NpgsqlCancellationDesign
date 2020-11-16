@@ -8,9 +8,6 @@ namespace NpgsqlCancellationDesign
         private readonly ReadBuffer readBuffer;
         private readonly WriteBuffer writeBuffer;
 
-        private volatile bool userCancellationRequested;
-        internal bool UserCancellationRequested => this.userCancellationRequested;
-
         internal ReadWriteObject RWO { get; } = new ReadWriteObject();
 
         public int ReadTimeout
@@ -39,11 +36,7 @@ namespace NpgsqlCancellationDesign
         public int Read() => this.readBuffer.Read(async: false).GetAwaiter().GetResult();
         public async Task<int> ReadAsync(CancellationToken cancellationToken = default)
         {
-            using var _ = cancellationToken.Register(() =>
-            {
-                this.userCancellationRequested = true;
-                this.readBuffer.Cts.Cancel();
-            });
+            using var _ = cancellationToken.Register(this.readBuffer.Cancel);
             return await this.readBuffer.Read(async: true);
         }
     }
