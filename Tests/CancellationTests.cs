@@ -10,10 +10,11 @@ namespace Tests
     {
         [Test]
         [Timeout(1000)]
-        public async Task CancelAsync([Values(true, false)] bool isTokenCancelled)
+        public async Task CancelAsync([Values(true, false)] bool isTokenCancelled, [Values(-1, 100)] int cancellationTimeout)
         {
             var connector = new Connector();
-            connector.ReadTimeout = 100;
+            connector.ReadTimeout = 200;
+            connector.CancellationTimeout = cancellationTimeout;
 
             using var cts = new CancellationTokenSource();
             if (isTokenCancelled)
@@ -41,7 +42,8 @@ namespace Tests
         public void CancelAsyncWhileDisposingCts()
         {
             var connector = new Connector();
-            connector.ReadTimeout = 100;
+            connector.ReadTimeout = 200;
+            connector.CancellationTimeout = -1;
             var readBuffer = connector.ReadBuffer;
             readBuffer.EnableCtsDisposeLock = true;
 
@@ -58,11 +60,12 @@ namespace Tests
         }
 
         [Test]
-        [Timeout(5000)]
+        [Timeout(1000)]
         public async Task CancelAsyncBetweenReadings()
         {
             var connector = new Connector();
-            connector.ReadTimeout = 100;
+            connector.ReadTimeout = 200;
+            connector.CancellationTimeout = -1;
             connector.EnableMultipleReadLock = true;
 
             await connector.WriteAsync(42);
@@ -77,5 +80,7 @@ namespace Tests
             Assert.That(connector.ReadCtsAllocated, Is.EqualTo(1));
             Assert.That(connector.WriteCtsAllocated, Is.EqualTo(0));
         }
+
+        //TODO: add a test for the cancellation with a CancellationTimeout = 0 (it should fail with a TimeoutException)
     }
 }

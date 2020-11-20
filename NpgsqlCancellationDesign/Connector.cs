@@ -9,6 +9,8 @@ namespace NpgsqlCancellationDesign
         private volatile bool isCancellationRequested;
         internal bool IsCancellationRequested => this.isCancellationRequested;
 
+        public int CancellationTimeout { get; set; } = 2000;
+
         internal ReadBuffer ReadBuffer { get; }
         internal WriteBuffer WriteBuffer { get; }
 
@@ -76,8 +78,19 @@ namespace NpgsqlCancellationDesign
                     return;
 
                 this.isCancellationRequested = true;
+                if (this.CancellationTimeout >= 0)
+                {
+                    if (this.CancellationTimeout > 0)
+                    {
+                        this.ReadBuffer.Timeout = this.CancellationTimeout;
+                        this.ReadBuffer.Cancel(this.CancellationTimeout);
+                    }
+
+                    return;
+                }
+
                 this.ReadBuffer.Timeout = 0;
-                this.ReadBuffer.Cancel();
+                this.ReadBuffer.Cancel(0);
             }
         }
 

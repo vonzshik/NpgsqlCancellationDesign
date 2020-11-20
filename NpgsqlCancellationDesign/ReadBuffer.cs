@@ -101,7 +101,7 @@ namespace NpgsqlCancellationDesign
             }
         }
 
-        internal void Cancel()
+        internal void Cancel(int timeout)
         {
             // We have to put a lock here, so it's not cancelled while it's being disposed
             lock (this)
@@ -111,7 +111,7 @@ namespace NpgsqlCancellationDesign
                 if (lockTaken == 0)
                 {
                     // Best case scenario - we were able to take a lock
-                    this.Cts.Cancel();
+                    this.Cts.CancelAfter(timeout);
                 }
 
                 Interlocked.Increment(ref this.resetCtsLock);
